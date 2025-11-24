@@ -1,14 +1,15 @@
 <?php
 session_start();
 if (!isset($_SESSION['user'])) {
-    header("Location: index.php");
-    exit();
+  header("Location: index.html");
+  exit();
 }
+require_once __DIR__ . '/includes/functions.php';
 
 $products = [
-  ['id'=>1, 'name'=>'DHH Hoodie', 'price'=>2500, 'image'=>'images/hoodie.jpg'],
-  ['id'=>2, 'name'=>'DHH Cap', 'price'=>1200, 'image'=>'images/cap.jpg'],
-  ['id'=>3, 'name'=>'DHH T-Shirt', 'price'=>1500, 'image'=>'images/tshirt.jpg']
+  ['id'=>1, 'name'=>'DHH Hoodie', 'price'=>2500, 'image'=>'hoodie.png'],
+  ['id'=>2, 'name'=>'DHH Cap', 'price'=>1200, 'image'=>'cap.png'],
+  ['id'=>3, 'name'=>'DHH T-Shirt', 'price'=>1500, 'image'=>'tshirt.png']
 ];
 
 $search = $_GET['search'] ?? '';
@@ -30,7 +31,7 @@ if ($search) {
 <head>
   <meta charset="UTF-8" />
   <title>Merch Store</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 <header>
@@ -57,6 +58,7 @@ if ($search) {
       <p>₹<?php echo number_format($product['price']); ?></p>
       <form method="POST" action="add_to_cart.php">
         <input type="hidden" name="id" value="<?php echo $product['id'] ?>" />
+        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>" />
         <button type="submit">Add to Cart</button>
       </form>
     </div>

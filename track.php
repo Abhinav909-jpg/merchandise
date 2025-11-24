@@ -1,8 +1,8 @@
 <?php
 session_start();
 if (!isset($_SESSION['user'])) {
-    header("Location: index.php");
-    exit();
+  header("Location: index.html");
+  exit();
 }
 ?>
 
@@ -11,7 +11,9 @@ if (!isset($_SESSION['user'])) {
 <head>
   <meta charset="UTF-8" />
   <title>Track Delivery</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="style.css" />
+  <!-- Leaflet CSS (OpenStreetMap) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     #map {
       height: 400px;
@@ -37,30 +39,29 @@ if (!isset($_SESSION['user'])) {
 <div class="container">
   <h2>Track Your Delivery</h2>
   <p>Delivery Guy: <strong>Aman Sharma</strong> | Contact: <a href="tel:+911234567890">+91 12345 67890</a></p>
-  
-  <div id="map"></div>
-  
-  <script>
-    function initMap() {
-      const deliveryLocation = { lat: 28.6139, lng: 77.2090 }; // Delhi coords
-      const map = new google.maps.Map(document.getElementById("map"), {
-        zoom: 13,
-        center: deliveryLocation,
-      });
-      new google.maps.Marker({
-        position: deliveryLocation,
-        map: map,
-        title: "Delivery Location",
-      });
-    }
-  </script>
-  <script async defer
-    src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap">
-  </script>
+</div>
+
+<div id="map"></div>
+
+<div class="container" style="margin-top:20px;">
+  <p><strong>Status:</strong> Your delivery is on the way! Expected arrival in 2-3 hours.</p>
 </div>
 
 <footer class="footer">
   &copy; 2025 DHH Merch
 </footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const deliveryLocation = [28.6139, 77.2090];
+    const map = L.map('map').setView(deliveryLocation, 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    L.marker(deliveryLocation).addTo(map).bindPopup('Delivery Location').openPopup();
+  });
+</script>
 </body>
 </html>

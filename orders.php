@@ -1,23 +1,54 @@
 <?php
 session_start();
 if (!isset($_SESSION['user'])) {
-    header("Location: index.php");
-    exit();
+  header("Location: index.html");
+  exit();
 }
 
-if (!isset($_SESSION['orders'])) {
-    $_SESSION['orders'] = [];
+require_once __DIR__ . '/includes/functions.php';
+
+// persistent orders storage (JSON file)
+$dataDir = __DIR__ . '/data';
+if (!is_dir($dataDir)) {
+  @mkdir($dataDir, 0755, true);
 }
+$ordersFile = $dataDir . '/orders.json';
+if (!file_exists($ordersFile)) {
+  @file_put_contents($ordersFile, json_encode([], JSON_PRETTY_PRINT));
+}
+
+// Load existing orders from disk
+$allOrders = json_decode(@file_get_contents($ordersFile), true) ?: [];
 
 if (isset($_POST['place_order'])) {
-    $cart = $_SESSION['cart'] ?? [];
-    if ($cart) {
-        $_SESSION['orders'][] = ['items' => $cart, 'time' => date('Y-m-d H:i:s'), 'status' => 'Processing'];
-        unset($_SESSION['cart']);
+  $token = $_POST['csrf_token'] ?? '';
+  if (!verify_csrf_token($token)) {
+    header("Location: cart.php");
+    exit();
+  }
+
+  $cart = $_SESSION['cart'] ?? [];
+  if ($cart) {
+    // validate product ids
+    $products = get_products_map();
+    $valid_items = [];
+    foreach ($cart as $id => $qty) {
+      if (isset($products[$id])) $valid_items[$id] = (int)$qty;
     }
+    if ($valid_items) {
+      $newOrder = ['items' => $valid_items, 'time' => date('Y-m-d H:i:s'), 'status' => 'Processing', 'user' => $_SESSION['user']];
+      $allOrders[] = $newOrder;
+      // persist to disk atomically
+      @file_put_contents($ordersFile, json_encode($allOrders, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    }
+    unset($_SESSION['cart']);
+  }
 }
 
-$orders = $_SESSION['orders'];
+// Show only current user's orders
+$orders = array_values(array_filter($allOrders, function($o) {
+  return isset($o['user']) && $o['user'] === ($_SESSION['user'] ?? '');
+}));
 ?>
 
 <!DOCTYPE html>
@@ -25,7 +56,7 @@ $orders = $_SESSION['orders'];
 <head>
   <meta charset="UTF-8" />
   <title>My Orders</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 <header>

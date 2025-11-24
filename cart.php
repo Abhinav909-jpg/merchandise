@@ -1,9 +1,11 @@
 <?php
 session_start();
 if (!isset($_SESSION['user'])) {
-    header("Location: index.php");
-    exit();
+  header("Location: index.html");
+  exit();
 }
+
+require_once __DIR__ . '/includes/functions.php';
 
 $products = [
   1 => ['name'=>'DHH Hoodie', 'price'=>2500],
@@ -20,7 +22,7 @@ $total = 0;
 <head>
   <meta charset="UTF-8" />
   <title>Your Cart</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 <header>
@@ -41,15 +43,18 @@ $total = 0;
   <?php else: ?>
     <ul>
       <?php foreach ($cart as $id => $qty): 
+        // defensive: skip items that don't exist in the products list
+        if (!isset($products[$id])) continue;
         $product = $products[$id];
         $subtotal = $qty * $product['price'];
         $total += $subtotal;
       ?>
-        <li><?php echo $product['name']; ?> x<?php echo $qty; ?> - ₹<?php echo number_format($subtotal); ?></li>
+        <li><?php echo htmlspecialchars($product['name']); ?> x<?php echo (int)$qty; ?> - ₹<?php echo number_format($subtotal); ?></li>
       <?php endforeach; ?>
     </ul>
     <p><strong>Total: ₹<?php echo number_format($total); ?></strong></p>
     <form method="POST" action="orders.php">
+      <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>" />
       <button name="place_order" type="submit">Place Order</button>
     </form>
   <?php endif; ?>

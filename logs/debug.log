@@ -1,0 +1,9 @@
+2025-11-24T19:55:56+00:00 LOGIN SUCCESS: sess=ea09db9be5bba481d0ea95f87ad25a3a email=user@example.com
+2025-11-24T19:56:18+00:00 ADD_TO_CART OK: sess=ea09db9be5bba481d0ea95f87ad25a3a id=2
+2025-11-24T20:04:42+00:00 LOGIN SUCCESS: sess=f4fbd5671b5cccf17d7dcea00c6a9721 email=user@example.com
+2025-11-24T20:06:46+00:00 ADD_TO_CART OK: sess=f4fbd5671b5cccf17d7dcea00c6a9721 id=1
+2025-11-24T20:06:52+00:00 ADD_TO_CART OK: sess=f4fbd5671b5cccf17d7dcea00c6a9721 id=2
+2025-11-24T20:14:52+00:00 LOGIN SUCCESS: sess=f4fbd5671b5cccf17d7dcea00c6a9721 email=user@example.com
+2025-11-24T20:14:57+00:00 ADD_TO_CART OK: sess=f4fbd5671b5cccf17d7dcea00c6a9721 id=1
+2025-11-24T20:19:50+00:00 REGISTER: sess=f4fbd5671b5cccf17d7dcea00c6a9721 email=abhinavsharma7686@gmail.com
+2025-11-24T20:19:55+00:00 ADD_TO_CART OK: sess=f4fbd5671b5cccf17d7dcea00c6a9721 id=1
