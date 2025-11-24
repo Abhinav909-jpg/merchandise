@@ -1,6 +1,18 @@
 <?php
 session_start();
-require_once __DIR__ . '/includes/functions.php';
+incPath = __DIR__ . '/includes/functions.php';
+if (!is_file($incPath)) {
+  // Log a helpful message for server admin (not revealing sensitive data to users)
+  @file_put_contents(__DIR__ . '/logs/debug.log', sprintf("%s MISSING INCLUDE: %s\n", date('c'), $incPath), FILE_APPEND);
+  // Show user-friendly instructions
+  http_response_code(500);
+  echo "<h2>Server configuration error</h2>";
+  echo "<p>The site is missing a required file: <code>includes/functions.php</code>.";
+  echo "<br />Please upload that file to the site root's <code>includes/</code> directory or check file permissions (web user must be able to read it).</p>";
+  echo "<p>If you have a local copy of the project, ensure <code>includes/functions.php</code> exists on the server at <code>/var/www/html/includes/functions.php</code>.</p>";
+  exit();
+}
+require_once $incPath;
 
 $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -87,3 +99,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <footer class="footer">&copy; 2025 DHH Merch</footer>
 </body>
 </html>
+
