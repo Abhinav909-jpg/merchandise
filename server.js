@@ -14,8 +14,12 @@ const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const ORDERS_FILE = path.join(DATA_DIR, 'orders.json');
 
 // initialize data directory and SQLite DB
-// We attempt to use the filesystem. If it fails (read-only, Vercel, etc.), we fall back to memory.
-let useMemory = !!process.env.VERCEL; // Default to true if Vercel env is detected
+// Default to In-Memory mode to prevent crashes on Vercel/Serverless environments.
+// Only use filesystem if explicitly enabled via env var.
+let useMemory = true; // FORCE MEMORY MODE
+if (process.env.ENABLE_FS) {
+  useMemory = false;
+}
 
 if (!useMemory) {
   try {
