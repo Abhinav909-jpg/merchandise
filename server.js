@@ -3,31 +3,43 @@ const session = require('express-session');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
-const fs = require('fs-extra');
+const { MongoClient } = require('mongodb');
 const path = require('path');
 
 const PORT = process.env.PORT || 8000;
 const app = express();
 
-// Force memory mode for Vercel (no file system access)
-let useMemory = true;
-let usingSqlite = false;
+// Connection URL - Using the provided string with URL encoded password
+// Password: Abhinav@88btgd -> Abhinav%4088btgd
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://abhinavsharma7686_db_user:Abhinav%4088btgd@cluster0.vusykte.mongodb.net/?appName=Cluster0';
+const DB_NAME = 'merchandise_store';
 
-// In-memory storage
-let MEMORY_USERS = {};
-let MEMORY_ORDERS = [];
+let db;
+let usersCollection;
+let ordersCollection;
 
-console.log('SERVER STARTING - FORCED IN-MEMORY MODE (Vercel Serverless)');
+// Connect to MongoDB
+async function connectDB() {
+  try {
+    const client = new MongoClient(MONGODB_URI);
+    await client.connect();
+    console.log('Connected to MongoDB Atlas');
+    db = client.db(DB_NAME);
+    usersCollection = db.collection('users');
+    ordersCollection = db.collection('orders');
+  } catch (err) {
+    console.error('Failed to connect to MongoDB', err);
+    process.exit(1);
+  }
+}
 
-// DO NOT serve static files from __dirname on Vercel
-// Instead, only serve JSON from API routes
-// If you need to serve static files, put them in a 'public' folder
-// and use: app.use(express.static('public'));
-app.use(express.static(__dirname)); // Keeping this for now to serve root files
+connectDB();
 
+app.use(express.static(__dirname));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(cookieParser());
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'dev-secret',
   resave: false,
@@ -35,29 +47,12 @@ app.use(session({
   cookie: { maxAge: 1000 * 60 * 60 * 24 }
 }));
 
-// Simple in-memory products list - same data as previous PHP
+// Products list (Static for now)
 const PRODUCTS = [
   { id: 1, name: 'DHH Hoodie', price: 2500, image: 'images/hoodie.png' },
   { id: 2, name: 'DHH Cap', price: 1200, image: 'images/cap.png' },
   { id: 3, name: 'DHH T-Shirt', price: 1500, image: 'images/tshirt.png' }
 ];
-
-// helper to read and write files - REFACTORED FOR MEMORY ONLY
-function readUsers() {
-  return MEMORY_USERS;
-}
-function writeUsers(obj) {
-  MEMORY_USERS = obj;
-}
-function readOrders() {
-  return MEMORY_ORDERS;
-}
-function addOrder(user, items, time, status) {
-  const id = MEMORY_ORDERS.length + 1;
-  const entry = { id, user, items, time, status }; // items is already object
-  MEMORY_ORDERS.push(entry);
-  return entry;
-}
 
 // API endpoints
 app.get('/api/products', (req, res) => {
@@ -86,14 +81,19 @@ app.post('/api/register', async (req, res) => {
   const err = requireCsrf(req, res);
   if (err) return;
 
-  const users = readUsers();
-  if (users[email]) return res.status(409).json({ error: 'user exists' });
-  const hash = await bcrypt.hash(password, 10);
-  users[email] = hash;
-  writeUsers(users);
+  try {
+    const existingUser = await usersCollection.findOne({ email });
+    if (existingUser) return res.status(409).json({ error: 'user exists' });
 
-  req.session.user = email;
-  res.json({ ok: true });
+    const hash = await bcrypt.hash(password, 10);
+    await usersCollection.insertOne({ email, password_hash: hash });
+
+    req.session.user = email;
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('Register error:', e);
+    res.status(500).json({ error: 'server error' });
+  }
 });
 
 app.post('/api/login', async (req, res) => {
@@ -101,20 +101,19 @@ app.post('/api/login', async (req, res) => {
   if (err) return;
   const { email, password } = req.body;
 
-  const users = readUsers();
-  const hash = users[email];
-
-  if (!hash) return res.status(401).json({ error: 'invalid' });
-
   try {
-    const match = await bcrypt.compare(password, hash);
-    if (!match) return res.status(401).json({ error: 'invalid' });
-  } catch (e) {
-    return res.status(500).json({ error: 'server error' });
-  }
+    const user = await usersCollection.findOne({ email });
+    if (!user) return res.status(401).json({ error: 'invalid' });
 
-  req.session.user = email;
-  res.json({ ok: true });
+    const match = await bcrypt.compare(password, user.password_hash);
+    if (!match) return res.status(401).json({ error: 'invalid' });
+
+    req.session.user = email;
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('Login error:', e);
+    res.status(500).json({ error: 'server error' });
+  }
 });
 
 app.post('/api/logout', (req, res) => {
@@ -155,36 +154,44 @@ app.post('/api/place-order', async (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'not authorized' });
   const cart = req.session.cart || {};
   if (Object.keys(cart).length === 0) return res.status(400).json({ error: 'empty cart' });
-  const orders = readOrders();
+
   const items = Object.entries(cart).reduce((acc, [id, qty]) => {
     const p = PRODUCTS.find(x => x.id === Number(id));
     if (p) acc.push({ id: p.id, name: p.name, qty: Number(qty), price: p.price });
     return acc;
   }, []);
-  const order = { items, time: new Date().toISOString(), status: 'Processing', user: req.session.user };
-  orders.push(order);
-  addOrder(req.session.user, items, order.time, order.status);
-  // clear cart
-  req.session.cart = {};
-  res.json({ ok: true, order });
+
+  const order = {
+    items,
+    time: new Date().toISOString(),
+    status: 'Processing',
+    user: req.session.user
+  };
+
+  try {
+    await ordersCollection.insertOne(order);
+    // clear cart
+    req.session.cart = {};
+    res.json({ ok: true, order });
+  } catch (e) {
+    console.error('Place order error:', e);
+    res.status(500).json({ error: 'server error' });
+  }
 });
 
 app.get('/api/orders', async (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'not authorized' });
-  const orders = readOrders();
-  const mine = (orders || []).filter(o => o.user === req.session.user).map(o => ({
-    id: o.id,
-    user: o.user,
-    items: (typeof o.items === 'string' ? JSON.parse(o.items) : o.items),
-    time: o.time,
-    status: o.status
-  }));
-  res.json(mine);
+  try {
+    const orders = await ordersCollection.find({ user: req.session.user }).sort({ time: -1 }).toArray();
+    res.json(orders);
+  } catch (e) {
+    console.error('Get orders error:', e);
+    res.status(500).json({ error: 'server error' });
+  }
 });
 
 app.post('/api/contact', (req, res) => {
   const { name, email, message } = req.body;
-  // In memory mode, we just ignore the write or log to console
   console.log('Contact Form Submitted:', { name, email, message });
   res.json({ ok: true });
 });
@@ -194,8 +201,10 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-if (useMemory) {
-  module.exports = app;
-} else {
+// Export app for Vercel
+module.exports = app;
+
+// Start server if not running on Vercel (local dev)
+if (require.main === module) {
   app.listen(PORT, () => console.log('Server running at http://localhost:' + PORT));
 }
