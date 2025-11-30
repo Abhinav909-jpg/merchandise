@@ -2,7 +2,7 @@ const express = require('express');
 const session = require('express-session');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const fs = require('fs-extra');
 let Database;
 const path = require('path');
@@ -14,13 +14,15 @@ const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const ORDERS_FILE = path.join(DATA_DIR, 'orders.json');
 
 // initialize data directory and SQLite DB
-const IS_VERCEL = process.env.VERCEL || process.env.vercel;
+// We attempt to use the filesystem. If it fails (read-only, Vercel, etc.), we fall back to memory.
+let useMemory = !!process.env.VERCEL; // Default to true if Vercel env is detected
 
-if (!IS_VERCEL) {
+if (!useMemory) {
   try {
     fs.ensureDirSync(DATA_DIR);
   } catch (e) {
-    console.warn('Could not create data dir (likely read-only fs):', e.message);
+    console.warn('Could not create data dir, switching to in-memory mode:', e.message);
+    useMemory = true;
   }
 }
 
@@ -28,12 +30,12 @@ const DB_FILE = path.join(DATA_DIR, 'database.sqlite');
 let db;
 let usingSqlite = false;
 
-// In-memory fallback for Vercel
+// In-memory fallback
 let MEMORY_USERS = {};
 let MEMORY_ORDERS = [];
 
-// Try to use better-sqlite3 if available and NOT on Vercel.
-if (!IS_VERCEL) {
+// Try to use better-sqlite3 if available and NOT in memory mode.
+if (!useMemory) {
   try {
     Database = require('better-sqlite3');
     db = new Database(DB_FILE);
@@ -59,7 +61,7 @@ if (!IS_VERCEL) {
       db.prepare('INSERT INTO users(email,password_hash) VALUES (?,?)').run('user@example.com', hashed);
     }
   } catch (e) {
-    console.warn('better-sqlite3 not present or failed to initialize — falling back to JSON files. Error:', e && e.message);
+    console.warn('better-sqlite3 not present or failed to initialize — falling back to JSON files.');
     usingSqlite = false;
     // ensure JSON files exist
     try {
@@ -68,7 +70,8 @@ if (!IS_VERCEL) {
       if (fs.readFileSync(USERS_FILE, 'utf8').trim() === '') fs.writeFileSync(USERS_FILE, JSON.stringify({}, null, 2));
       if (fs.readFileSync(ORDERS_FILE, 'utf8').trim() === '') fs.writeFileSync(ORDERS_FILE, JSON.stringify([], null, 2));
     } catch (err) {
-      console.warn('File system is read-only, using in-memory storage.');
+      console.warn('File system is read-only, switching to in-memory mode.');
+      useMemory = true;
     }
   }
 }
@@ -94,7 +97,7 @@ const PRODUCTS = [
 
 // helper to read and write files
 function readUsers() {
-  if (IS_VERCEL) return MEMORY_USERS;
+  if (useMemory) return MEMORY_USERS;
   if (usingSqlite) {
     const rows = db.prepare('SELECT email, password_hash FROM users').all();
     const obj = {};
@@ -105,7 +108,7 @@ function readUsers() {
   try { return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8') || '{}'); } catch (e) { return MEMORY_USERS; }
 }
 function writeUsers(obj) {
-  if (IS_VERCEL) { MEMORY_USERS = obj; return; }
+  if (useMemory) { MEMORY_USERS = obj; return; }
   if (usingSqlite) {
     const insert = db.prepare('INSERT OR REPLACE INTO users(email,password_hash) VALUES (?,?)');
     const trx = db.transaction((items) => {
@@ -114,17 +117,17 @@ function writeUsers(obj) {
     trx(obj);
     return;
   }
-  try { fs.writeFileSync(USERS_FILE, JSON.stringify(obj, null, 2), 'utf8'); } catch (e) { MEMORY_USERS = obj; }
+  try { fs.writeFileSync(USERS_FILE, JSON.stringify(obj, null, 2), 'utf8'); } catch (e) { MEMORY_USERS = obj; useMemory = true; }
 }
 function readOrders() {
-  if (IS_VERCEL) return MEMORY_ORDERS;
+  if (useMemory) return MEMORY_ORDERS;
   if (usingSqlite) {
     return db.prepare('SELECT id, user, items, time, status FROM orders ORDER BY id ASC').all();
   }
   try { return JSON.parse(fs.readFileSync(ORDERS_FILE, 'utf8') || '[]'); } catch (e) { return MEMORY_ORDERS; }
 }
 function addOrder(user, items, time, status) {
-  if (IS_VERCEL) {
+  if (useMemory) {
     const id = MEMORY_ORDERS.length + 1;
     const entry = { id, user, items, time, status }; // items is already object
     MEMORY_ORDERS.push(entry);
@@ -139,7 +142,7 @@ function addOrder(user, items, time, status) {
   const entry = { id, user, items: JSON.stringify(items), time, status };
   // keep old orders.json format compatibility (items as object) — store in a simple form
   orders.push({ id, user, items, time, status });
-  try { fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2), 'utf8'); } catch (e) { MEMORY_ORDERS = orders; }
+  try { fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2), 'utf8'); } catch (e) { MEMORY_ORDERS = orders; useMemory = true; }
   return entry;
 }
 
@@ -170,7 +173,7 @@ app.post('/api/register', async (req, res) => {
   const err = requireCsrf(req, res);
   if (err) return;
 
-  if (usingSqlite && !IS_VERCEL) {
+  if (usingSqlite && !useMemory) {
     const stmt = db.prepare('SELECT password_hash FROM users WHERE email = ?');
     const row = stmt.get(email);
     if (row) return res.status(409).json({ error: 'user exists' });
@@ -194,7 +197,7 @@ app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
 
   let hash;
-  if (usingSqlite && !IS_VERCEL) {
+  if (usingSqlite && !useMemory) {
     const row = db.prepare('SELECT password_hash FROM users WHERE email = ?').get(email);
     hash = row && row.password_hash;
   } else {
@@ -283,7 +286,7 @@ app.get('/api/orders', async (req, res) => {
 app.post('/api/contact', (req, res) => {
   const { name, email, message } = req.body;
   const entry = { time: new Date().toISOString(), name, email, message };
-  if (!IS_VERCEL) {
+  if (!useMemory) {
     try {
       fs.ensureDirSync(path.join(__dirname, 'logs'));
       fs.appendFileSync(path.join(__dirname, 'logs', 'contact.log'), JSON.stringify(entry) + '\n');
@@ -297,7 +300,7 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-if (IS_VERCEL) {
+if (useMemory) {
   module.exports = app;
 } else {
   app.listen(PORT, () => console.log('Server running at http://localhost:' + PORT));
