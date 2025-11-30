@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Merch Store</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+</head>
+
+<body>
+  <header>
+    <nav>
+      <a href="products.html" class="active">Home</a>
+      <a href="cart.html">Cart</a>
+      <a href="orders.html">My Orders</a>
+      <!DOCTYPE html>
+      <html lang="en">
+
+      <head>
+        <meta charset="UTF-8" />
+        <title>Merch Store</title>
+        <link rel="stylesheet" href="style.css" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+      </head>
+
+      <body>
+        <header>
+          <nav>
+            <a href="products.html" class="active">Home</a>
+            <a href="cart.html">Cart</a>
+            <a href="orders.html">My Orders</a>
+            <a href="track.html">Track Delivery</a>
+            <a href="contact.html">Customer Care</a>
+            <a href="#" id="logout">Logout</a>
+          </nav>
+        </header>
+
+        <div class="hero">
+          <div class="hero-content">
+            <h2>DHH Merch Drop</h2>
+            <p>Exclusive limited edition merchandise from your favorite DHH artists. Grab them before they're gone!</p>
+          </div>
+        </div>
+
+        <div class="container">
+          <form id="searchForm">
+            <input class="search-bar" id="search" type="text" name="search" placeholder="Search merchandise..." />
+          </form>
+
+          <div class="products" id="productList">
+            <div class="loader"></div>
+          </div>
+        </div>
+
+        <footer class="footer">&copy; 2025 DHH Merch</footer>
+
+        <script>
+          function showToast(msg, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<span>${msg}</span>`;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+              toast.style.animation = 'fadeOut 0.5s forwards';
+              setTimeout(() => toast.remove(), 500);
+            }, 3000);
+          }
+
+          async function getCsrfToken() {
+            const res = await fetch('/api/csrf');
+            const data = await res.json();
+            return data.csrf;
+          }
+
+          async function requireLogin() {
+            const res = await fetch('/api/me');
+            const info = await res.json();
+            if (!info.user) return window.location.href = '/index.html';
+          }
+
+          async function fetchProducts(q = '') {
+            const res = await fetch('/api/products');
+            const products = await res.json();
+            if (q) {
+              return products.filter(p => p.name.toLowerCase().includes(q.toLowerCase()));
+            }
+            return products;
+          }
+
+          async function render() {
+            await requireLogin();
+            const q = document.getElementById('search').value || '';
+            const list = await fetchProducts(q);
+            const out = document.getElementById('productList');
+            if (!list.length) { out.innerHTML = '<p>No products.</p>'; return; }
+            out.innerHTML = list.map(p => `
+      <div class="product">
+        <img src="${p.image}" alt="${p.name}" />
+        <h3>${p.name}</h3>
+        <p>₹${Number(p.price).toLocaleString()}</p>
+        <button data-id="${p.id}" class="add">Add to Cart</button>
+      </div>`).join('');
+
+            document.querySelectorAll('.add').forEach(btn => {
+              btn.addEventListener('click', async () => {
+                const id = btn.getAttribute('data-id');
+                try {
+                  const csrf = await getCsrfToken();
+                  const r = await fetch('/api/add-to-cart', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'x-csrf-token': csrf
+                    },
+                    body: JSON.stringify({ id: Number(id) })
+                  });
+                  const json = await r.json();
+                  if (r.ok) {
+                    showToast('Added to Cart!');
+                  } else {
+                    showToast(json.error || 'Failed to add to cart', 'error');
+                  }
+                } catch (e) {
+                  console.error(e);
+                  showToast('Error adding to cart', 'error');
+                }
+              });
+            });
+          }
+
+          document.getElementById('searchForm').addEventListener('submit', e => { e.preventDefault(); render(); });
+
+          document.getElementById('logout').addEventListener('click', async () => {
+            try {
+              const csrf = await getCsrfToken();
+              await fetch('/api/logout', {
+                method: 'POST',
+                headers: { 'x-csrf-token': csrf }
+              });
+              window.location.href = '/index.html';
+            } catch (e) {
+              console.error(e);
+              window.location.href = '/index.html';
+            }
+          });
+
+          render();
+        </script>
+      </body>
+
+      </html>

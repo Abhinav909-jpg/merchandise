@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Track Delivery</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Leaflet CSS (OpenStreetMap) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    #map {
+      height: 400px;
+      width: 100%;
+      margin-top: 15px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <nav>
+    <a href="products.html">Home</a>
+    <a href="cart.html">Cart</a>
+    <a href="orders.html">My Orders</a>
+    <a href="track.html" class="active">Track Delivery</a>
+    <a href="contact.html">Customer Care</a>
+    <a href="#" id="logout">Logout</a>
+  </nav>
+</header>
+
+<div class="container">
+  <h2>Track Your Delivery</h2>
+  <p>Delivery Guy: <strong>Aman Sharma</strong> | Contact: <a href="tel:+911234567890">+91 12345 67890</a></p>
+</div>
+
+<div id="map"></div>
+
+<div class="container" style="margin-top:20px;">
+  <p><strong>Status:</strong> Your delivery is on the way! Expected arrival in 2-3 hours.</p>
+</div>
+
+<footer class="footer">&copy; 2025 DHH Merch</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const deliveryLocation = [28.6139, 77.2090];
+    const map = L.map('map').setView(deliveryLocation, 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    L.marker(deliveryLocation).addTo(map).bindPopup('Delivery Location').openPopup();
+  });
+
+  document.getElementById('logout').addEventListener('click', async ()=>{
+    const tokenRes = await fetch('/api/csrf');
+    const tokenJson = await tokenRes.json();
+    await fetch('/api/logout', { method:'POST', headers:{'x-csrf-token': tokenJson.csrf} });
+    window.location.href = '/index.html';
+  });
+</script>
+</body>
+</html>

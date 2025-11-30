@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Sign Up - DHH Merch</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <header>
+    <h1>Create an account</h1>
+  </header>
+  <!doctype html>
+  <html lang="en">
+
+  <head>
+    <meta charset="utf-8" />
+    <title>Sign Up - DHH Merch</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <header>
+      <h1>Create an account</h1>
+    </header>
+    <div class="auth-body">
+      <div class="auth-container">
+        <h2>Register</h2>
+        <form id="registerForm">
+          <input type="email" name="email" required placeholder="Email" />
+          <input type="password" name="password" required placeholder="Password (min 6 chars)" />
+          <button type="submit">Sign Up</button>
+        </form>
+        <p style="margin-top:20px;">Already have an account? <a href="index.html" style="color:var(--primary-color)">Log
+            in</a></p>
+      </div>
+    </div>
+
+    <footer class="footer">&copy; 2025 DHH Merch</footer>
+
+    <script>
+      function showToast(msg, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `<span>${msg}</span>`;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+          toast.style.animation = 'fadeOut 0.5s forwards';
+          setTimeout(() => toast.remove(), 500);
+        }, 3000);
+      }
+
+      document.getElementById('registerForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const data = Object.fromEntries(fd.entries());
+
+        try {
+          const csrfRes = await fetch('/api/csrf');
+          const csrfData = await csrfRes.json();
+
+          const res = await fetch('/api/register', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-csrf-token': csrfData.csrf
+            },
+            body: JSON.stringify(data)
+          });
+
+          const json = await res.json();
+
+          if (res.ok) {
+            showToast('Registration successful! Redirecting...');
+            setTimeout(() => window.location.href = '/index.html', 1500);
+          } else {
+            showToast(json.error || 'Registration failed', 'error');
+          }
+        } catch (err) {
+          console.error(err);
+          showToast('An error occurred', 'error');
+        }
+      });
+    </script>
+  </body>
+
+  </html>

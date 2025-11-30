@@ -1,4 +1,4 @@
 {
-    "user@example.com": "$2y$10$XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    "abhinavsharma7686@gmail.com": "$2y$12$8K7hVIdxlw68hLYC66xvheD.O0L3yP7TV3wczZa0rxbeG1sfY5GMa"
+  "user@example.com": "$2b$10$RNRnUc45PUr2fXqYforTeOp00pu196Zg4BPsY8g/0.1QxNjDrs0.W",
+  "abhinavsharma7686@gmail.com": "$2b$10$KOM3yFGGfVAkW2CZgYwi3uAIarLHH6q.xe0NHkgkBc8hcliCSl14y"
 }
