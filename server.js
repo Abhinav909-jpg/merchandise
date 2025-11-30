@@ -3,7 +3,12 @@ const session = require('express-session');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
-const { MongoClient } = require('mongodb');
+let MongoClient;
+try {
+  MongoClient = require('mongodb').MongoClient;
+} catch (e) {
+  console.error('FAILED TO LOAD MONGODB:', e);
+}
 const path = require('path');
 
 const PORT = process.env.PORT || 8000;
@@ -14,26 +19,26 @@ const app = express();
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://abhinavsharma7686_db_user:Abhinav%4088btgd@cluster0.vusykte.mongodb.net/?appName=Cluster0';
 const DB_NAME = 'merchandise_store';
 
-let db;
-let usersCollection;
-let ordersCollection;
+// Global connection promise to prevent multiple connections in serverless
+let dbPromise;
 
-// Connect to MongoDB
-async function connectDB() {
+async function getDb() {
+  if (dbPromise) return dbPromise;
+
   try {
     const client = new MongoClient(MONGODB_URI);
-    await client.connect();
-    console.log('Connected to MongoDB Atlas');
-    db = client.db(DB_NAME);
-    usersCollection = db.collection('users');
-    ordersCollection = db.collection('orders');
+    dbPromise = client.connect().then(client => {
+      console.log('Connected to MongoDB Atlas');
+      return client.db(DB_NAME);
+    });
+    return dbPromise;
   } catch (err) {
-    console.error('Failed to connect to MongoDB', err);
-    process.exit(1);
+    console.error('Failed to initiate MongoDB connection', err);
+    throw err;
   }
 }
 
-connectDB();
+// connectDB(); // Removed immediate call
 
 app.use(express.static(__dirname));
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -59,6 +64,10 @@ app.get('/api/products', (req, res) => {
   res.json(PRODUCTS);
 });
 
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', env: process.env.VERCEL ? 'vercel' : 'local' });
+});
+
 app.get('/api/csrf', (req, res) => {
   if (!req.session.csrfToken) {
     req.session.csrfToken = require('crypto').randomBytes(24).toString('hex');
@@ -82,6 +91,9 @@ app.post('/api/register', async (req, res) => {
   if (err) return;
 
   try {
+    const db = await getDb();
+    const usersCollection = db.collection('users');
+
     const existingUser = await usersCollection.findOne({ email });
     if (existingUser) return res.status(409).json({ error: 'user exists' });
 
@@ -92,7 +104,7 @@ app.post('/api/register', async (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     console.error('Register error:', e);
-    res.status(500).json({ error: 'server error' });
+    res.status(500).json({ error: 'server error: ' + e.message });
   }
 });
 
@@ -102,6 +114,9 @@ app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
+    const db = await getDb();
+    const usersCollection = db.collection('users');
+
     const user = await usersCollection.findOne({ email });
     if (!user) return res.status(401).json({ error: 'invalid' });
 
@@ -112,7 +127,7 @@ app.post('/api/login', async (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     console.error('Login error:', e);
-    res.status(500).json({ error: 'server error' });
+    res.status(500).json({ error: 'server error: ' + e.message });
   }
 });
 
@@ -169,24 +184,28 @@ app.post('/api/place-order', async (req, res) => {
   };
 
   try {
+    const db = await getDb();
+    const ordersCollection = db.collection('orders');
     await ordersCollection.insertOne(order);
     // clear cart
     req.session.cart = {};
     res.json({ ok: true, order });
   } catch (e) {
     console.error('Place order error:', e);
-    res.status(500).json({ error: 'server error' });
+    res.status(500).json({ error: 'server error: ' + e.message });
   }
 });
 
 app.get('/api/orders', async (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'not authorized' });
   try {
+    const db = await getDb();
+    const ordersCollection = db.collection('orders');
     const orders = await ordersCollection.find({ user: req.session.user }).sort({ time: -1 }).toArray();
     res.json(orders);
   } catch (e) {
     console.error('Get orders error:', e);
-    res.status(500).json({ error: 'server error' });
+    res.status(500).json({ error: 'server error: ' + e.message });
   }
 });
 
