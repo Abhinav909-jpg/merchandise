@@ -21,6 +21,7 @@ if (process.env.ENABLE_FS) {
   useMemory = false;
 }
 
+/*
 if (!useMemory) {
   try {
     fs.ensureDirSync(DATA_DIR);
@@ -29,6 +30,8 @@ if (!useMemory) {
     useMemory = true;
   }
 }
+*/
+console.log('SERVER STARTING - FORCED MEMORY MODE');
 
 const DB_FILE = path.join(DATA_DIR, 'database.sqlite');
 let db;
@@ -39,6 +42,7 @@ let MEMORY_USERS = {};
 let MEMORY_ORDERS = [];
 
 // Try to use better-sqlite3 if available and NOT in memory mode.
+/*
 if (!useMemory) {
   try {
     Database = require('better-sqlite3');
@@ -79,6 +83,7 @@ if (!useMemory) {
     }
   }
 }
+*/
 
 app.use(express.static(__dirname));
 app.use(bodyParser.urlencoded({ extended: true }));
