@@ -1,3 +1,7 @@
+console.log('VERSION: CLEAN BUILD - NO FS (v2)');
+console.log('VERSION: CLEAN BUILD - NO FS (v3)');
+console.log('VERSION: CLEAN BUILD - NO FS (v3)');
+console.log('VERSION: CLEAN BUILD - NO FS (v4 - JSON FIX)');
 const express = require('express');
 const session = require('express-session');
 const bodyParser = require('body-parser');

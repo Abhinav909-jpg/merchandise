@@ -4,20 +4,14 @@
   "description": "DHH Merch - Node.js version of the PHP demo",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"{
-      "name": "merchandise-node",
-      "version": "1.0.0",
-      "description": "DHH Merch - Node.js version of the PHP demo",
-      "main": "server.js",
-      "scripts": {
-        "start": "node server.js"
-      },
-      "dependencies": {
-        "bcryptjs": "^2.4.3",
-        "body-parser": "^1.20.2",
-        "cookie-parser": "^1.4.6",
-        "express": "^4.18.2",
-        "express-session": "^1.17.3",
-        "mongodb": "^7.0.0"
-      }
-    }
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^1.20.2",
+    "cookie-parser": "^1.4.6",
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "mongodb": "^7.0.0"
+  }
+}
