@@ -51,8 +51,12 @@ async function getDb() {
 
 // connectDB(); // Removed immediate call
 
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(bodyParser.urlencoded({ extended: true }));
+// app.use(express.static(path.join(__dirname, 'public'))); // Handled by Vercel
+
+// ...
+
+// Export app for Vercel
+module.exports = app;
 app.use(bodyParser.json());
 app.use(cookieParser());
 
