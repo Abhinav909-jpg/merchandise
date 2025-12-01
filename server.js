@@ -4,6 +4,13 @@ console.log('VERSION: CLEAN BUILD - NO FS (v3)');
 console.log('VERSION: CLEAN BUILD - NO FS (v4 - JSON FIX)');
 const express = require('express');
 const session = require('express-session');
+const cors = require('cors');
+const corsConfig = {
+  origin: "*",
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE"],
+};
+app.use(cors(corsConfig));
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
@@ -219,10 +226,7 @@ app.post('/api/contact', (req, res) => {
   res.json({ ok: true });
 });
 
-// fallback to index
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
+
 
 // Export app for Vercel
 module.exports = app;
