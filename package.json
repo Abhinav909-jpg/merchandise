@@ -2,12 +2,12 @@
   "name": "merchandise-node",
   "version": "1.0.0",
   "description": "DHH Merch - Node.js version of the PHP demo",
-  "main": "server.js",
+  "main": "api/index.js",
   "engines": {
     "node": "20.x"
   },
   "scripts": {
-    "start": "node server.js",
+    "start": "node api/index.js",
     "build": "echo 'No build step'"
   },
   "dependencies": {
