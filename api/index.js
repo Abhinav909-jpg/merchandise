@@ -4,6 +4,7 @@ console.log('VERSION: CLEAN BUILD - NO FS (v3)');
 console.log('VERSION: CLEAN BUILD - NO FS (v4 - JSON FIX)');
 const express = require('express');
 const session = require('express-session');
+const MongoStore = require('connect-mongo');
 const cors = require('cors');
 const corsConfig = {
   origin: "*",
@@ -51,7 +52,7 @@ async function getDb() {
 
 // connectDB(); // Removed immediate call
 
-// app.use(express.static(path.join(__dirname, 'public'))); // Handled by Vercel
+app.use(express.static(path.join(__dirname, '../public')));
 
 // ...
 
@@ -64,6 +65,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'dev-secret',
   resave: false,
   saveUninitialized: false,
+  store: MongoStore.create({ mongoUrl: MONGODB_URI }),
   cookie: { maxAge: 1000 * 60 * 60 * 24 }
 }));
 
