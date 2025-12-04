@@ -36,7 +36,10 @@ if (process.env.NODE_ENV === 'development') {
   }
   clientPromise = global._mongoClientPromise;
 } else {
-  clientPromise = client.connect();
+  clientPromise = client.connect().catch(err => {
+    console.error('MongoDB Connection Failed:', err);
+    process.exit(1);
+  });
 }
 
 async function getDb() {
