@@ -32,20 +32,24 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://abhinavsharma7686_
 const DB_NAME = 'merchandise_store';
 
 // Global connection promise to prevent multiple connections in serverless
-let dbPromise;
+const client = new MongoClient(MONGODB_URI);
+let clientPromise;
+
+if (process.env.NODE_ENV === 'development') {
+  if (!global._mongoClientPromise) {
+    global._mongoClientPromise = client.connect();
+  }
+  clientPromise = global._mongoClientPromise;
+} else {
+  clientPromise = client.connect();
+}
 
 async function getDb() {
-  if (dbPromise) return dbPromise;
-
   try {
-    const client = new MongoClient(MONGODB_URI);
-    dbPromise = client.connect().then(client => {
-      console.log('Connected to MongoDB Atlas');
-      return client.db(DB_NAME);
-    });
-    return dbPromise;
+    const client = await clientPromise;
+    return client.db(DB_NAME);
   } catch (err) {
-    console.error('Failed to initiate MongoDB connection', err);
+    console.error('Failed to get DB connection', err);
     throw err;
   }
 }
@@ -65,7 +69,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'dev-secret',
   resave: false,
   saveUninitialized: false,
-  store: MongoStore.create({ mongoUrl: MONGODB_URI }),
+  store: MongoStore.create({ clientPromise: clientPromise }),
   cookie: { maxAge: 1000 * 60 * 60 * 24 }
 }));
 
