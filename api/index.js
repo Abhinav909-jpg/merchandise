@@ -15,12 +15,7 @@ app.use(cors(corsConfig));
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
-let MongoClient;
-try {
-  MongoClient = require('mongodb').MongoClient;
-} catch (e) {
-  console.error('FAILED TO LOAD MONGODB:', e);
-}
+const MongoClient = require('mongodb').MongoClient;
 const path = require('path');
 
 const PORT = process.env.PORT || 8000;
